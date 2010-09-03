@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<operators name="hmm" version="5.0" docbundle="com/rapidminer/resources/i18n/OperatorsDocHMM">
+    <group key="">
+        <group key="modeling">
+            <icon>chart_line.png</icon>
+ 
+            <group key="HMM">
+                <icon>symbol_percent.png</icon>
+                <operator>
+                    <key>hmm_learner</key>
+                    <class>cz.cuni.amis.rapidminer.operator.hmm.HMMLearner</class>
+                    <replaces>ForecastingPerformance</replaces>
+                </operator>
+                <operator>
+                    <key>hmm_baum_welch</key>
+                    <class>cz.cuni.amis.rapidminer.operator.hmm.BaumWelch</class>
+                </operator>
+                <operator>
+                    <key>hmm_kmeans</key>
+                    <class>cz.cuni.amis.rapidminer.operator.hmm.KMeans</class>
+                </operator>
+            </group>
+        </group>
+    </group>
+</operators>
