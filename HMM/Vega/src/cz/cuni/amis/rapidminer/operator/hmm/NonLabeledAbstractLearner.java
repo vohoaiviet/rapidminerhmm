@@ -2,6 +2,7 @@ package cz.cuni.amis.rapidminer.operator.hmm;
 
 import com.rapidminer.example.AttributeWeights;
 import com.rapidminer.example.ExampleSet;
+import com.rapidminer.example.table.PolynominalAttribute;
 import com.rapidminer.operator.Model;
 import com.rapidminer.operator.Operator;
 import com.rapidminer.operator.OperatorDescription;
@@ -21,7 +22,11 @@ import com.rapidminer.operator.ports.metadata.MetaData;
 import com.rapidminer.operator.ports.metadata.MetaDataError;
 import com.rapidminer.operator.ports.metadata.PassThroughRule;
 import com.rapidminer.operator.ports.metadata.SimpleMetaDataError;
+import com.rapidminer.parameter.ParameterType;
+import com.rapidminer.parameter.ParameterTypeAttribute;
+import com.rapidminer.parameter.ParameterTypeStringCategory;
 import com.rapidminer.tools.Tools;
+import java.util.List;
 
 /**
  * Slightly modified version of original RM AbstractLearner. This one omits checking
@@ -240,5 +245,18 @@ public abstract class NonLabeledAbstractLearner extends Operator implements Lear
 
     public InputPort getExampleSetInputPort() {
         return this.exampleSetInput;
+    }
+    public static final String OBSERVATION_ATR_NAME = "observation_attribute";
+
+    @Override
+    public List<ParameterType> getParameterTypes() {
+        List<ParameterType> types = super.getParameterTypes();
+        types.add(new ParameterTypeAttribute(OBSERVATION_ATR_NAME, "The name of the attribute whose role should be changed.", getExampleSetInputPort(), false, false));
+        return types;
+    }
+
+    protected PolynominalAttribute getObservationAttribute() throws UserError {
+        String obsAtrName = getParameterAsString(OBSERVATION_ATR_NAME);
+        return (PolynominalAttribute) exampleSetInput.getData(ExampleSet.class).getAttributes().get(obsAtrName);
     }
 }

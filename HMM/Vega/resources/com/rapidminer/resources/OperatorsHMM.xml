@@ -19,6 +19,44 @@
                     <key>hmm_kmeans</key>
                     <class>cz.cuni.amis.rapidminer.operator.hmm.KMeans</class>
                 </operator>
+                <operator>
+                    <key>hmm_modifier</key>
+                    <class>cz.cuni.amis.rapidminer.operator.hmm.HMMDistributionModifier</class>
+                </operator>
+
+                <operator>
+                    <key>hmm_ensamble_learner</key>
+                    <class>cz.cuni.amis.rapidminer.operator.hmm.KullbackLeiblerDistance</class>
+                </operator>
+
+                <operator>
+                    <key>hmm_kl_distance</key>
+                    <class>cz.cuni.amis.rapidminer.operator.hmm.HMMEnsambleLearner</class>
+                </operator>
+
+
+                <group key="util">
+                    <operator>
+                        <key>markov_sequence_generator</key>
+                        <class>cz.cuni.amis.rapidminer.operator.hmm.generator.MarkovSequenceGenerator</class>
+                    </operator>
+                    <operator>
+                        <key>jahmm_reader</key>
+                        <class>cz.cuni.amis.rapidminer.operator.hmm.io.JAHMMReader</class>
+                    </operator>
+                    <operator>
+                        <key>jahmm_writer</key>
+                        <class>cz.cuni.amis.rapidminer.operator.hmm.io.JAHMMWriter</class>
+                    </operator>
+                </group>
+                
+                <group key="meta">
+                    <operator>
+                        <key>layered_meta</key>
+                        <class>cz.cuni.amis.rapidminer.operator.learner.meta.LayeredModelLearner</class>
+                    </operator>
+                    
+                </group>
             </group>
         </group>
     </group>

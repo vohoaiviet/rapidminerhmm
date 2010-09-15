@@ -3,7 +3,7 @@ package cz.cuni.amis.rapidminer.gui.renderer.hmm;
 import com.rapidminer.gui.graphs.GraphCreator;
 import com.rapidminer.gui.renderer.AbstractGraphRenderer;
 import com.rapidminer.operator.IOContainer;
-import cz.cuni.amis.rapidminer.operator.hmm.HMMModel;
+import cz.cuni.amis.rapidminer.operator.hmm.model.HMMModel;
 
 /**
  *

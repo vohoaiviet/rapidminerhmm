@@ -1,4 +1,4 @@
-package cz.cuni.amis.rapidminer.operator.hmm;
+package cz.cuni.amis.rapidminer.operator.hmm.model;
 
 import be.ac.ulg.montefiore.run.jahmm.Hmm;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
@@ -21,27 +21,26 @@ import java.util.List;
 public class HMMModel extends PredictionModel {
 
     /** HMM used for prediction. */
-    Hmm hmm;
+    Hmm<ObservationInteger> hmm;
     /**
      * Maps state indexes to human readable names.
      */
     NominalMapping stateNameMapping = null;
 
-    public HMMModel(Hmm hmm, ExampleSet es) {
+    public HMMModel(Hmm<ObservationInteger> hmm, ExampleSet es) {
         super(es);
         this.hmm = hmm;
         PolynominalAttribute labelAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.LABEL_NAME);
         this.stateNameMapping = labelAtr.getMapping();
     }
 
-    public HMMModel(Hmm hmm, ExampleSet es, NominalMapping stateNameMapping) {
+    public HMMModel(Hmm<ObservationInteger> hmm, ExampleSet es, NominalMapping stateNameMapping) {
         super(es);
         this.hmm = hmm;
-        PolynominalAttribute labelAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.LABEL_NAME);
         this.stateNameMapping = stateNameMapping;
     }
 
-    public Hmm getHmm() {
+    public Hmm<ObservationInteger> getHmm() {
         return hmm;
     }
     HMMAlg currentAlgorithm = HMMAlg.VITERBI;
@@ -59,13 +58,13 @@ public class HMMModel extends PredictionModel {
     }
 
     @Override
-    public ExampleSet performPrediction(ExampleSet es, Attribute atrbt) throws OperatorException {
+    public ExampleSet performPrediction(ExampleSet es, Attribute predictedAtr) throws OperatorException {
 
         Attribute clusterAtr = es.getAttributes().getCluster();
 
         switch (currentAlgorithm) {
             case VITERBI:
-                return viterbi(es);
+                return viterbi(es, predictedAtr);
             default:
                 throw new OperatorException("No valid algorithm set.");
         }
@@ -79,7 +78,7 @@ public class HMMModel extends PredictionModel {
         return es;
     }
 
-    protected ExampleSet viterbi(ExampleSet es) {
+    protected ExampleSet viterbi(ExampleSet es, Attribute predictedAtr) {
         // translate the cluster values
         List<ObservationInteger> clustersSequence = new ArrayList<ObservationInteger>(es.size());
         PolynominalAttribute observAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.CLUSTER_NAME);
@@ -97,7 +96,7 @@ public class HMMModel extends PredictionModel {
         Iterator<Example> itES = es.iterator();
         int i = 0;
         while (itES.hasNext()) {
-            itES.next().setPredictedLabel(hiddenStates[i++]);
+            itES.next().setValue(predictedAtr, hiddenStates[i++]);
         }
         return es;
     }
@@ -147,13 +146,14 @@ public class HMMModel extends PredictionModel {
      * @return Name of the state.
      */
     public String getStateName(int index) {
-        return stateNameMapping.mapIndex(index);
+        return stateNameMapping != null
+                ? stateNameMapping.mapIndex(index)
+                : Integer.toString(index);
     }
 
     public NominalMapping getStateNameMapping() {
         return stateNameMapping;
     }
-
 
     enum HMMAlg {
 

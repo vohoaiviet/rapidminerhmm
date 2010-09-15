@@ -1,5 +1,6 @@
 package cz.cuni.amis.rapidminer.operator.hmm;
 
+import cz.cuni.amis.rapidminer.operator.hmm.model.HMMModel;
 import be.ac.ulg.montefiore.run.jahmm.Hmm;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
 import be.ac.ulg.montefiore.run.jahmm.OpdfInteger;
@@ -15,18 +16,14 @@ import com.rapidminer.operator.OperatorDescription;
 import com.rapidminer.operator.OperatorException;
 import com.rapidminer.operator.learner.AbstractLearner;
 import com.rapidminer.operator.learner.PredictionModel;
-import com.rapidminer.parameter.ParameterType;
-import com.rapidminer.parameter.ParameterTypeDouble;
-import com.rapidminer.parameter.UndefinedParameterError;
 import java.util.Iterator;
-import java.util.List;
 
 /**
  * Learns a HMM model from input data, input is supposed to have one label attribute
  * and one cluster attribute. Label is used as a hidden state, cluster as an observation.
  * @author ik
  */
-public class HMMLearner extends AbstractLearner {
+public class HMMLearner extends NonLabeledAbstractLearner {
 
     public HMMLearner(OperatorDescription od) {
         super(od);    
@@ -44,29 +41,15 @@ public class HMMLearner extends AbstractLearner {
 
         // count states
         int N = stateAtr.getMapping().size();
-        //ClusterModel clusterModel = clusterModelInput.getData(ClusterModel.class);
-        // count observations
-       // int M = clusterModel.getNumberOfClusters();//countNumberOfUniqueAtrValues(exampleSet, exampleSet.getAttributes().getCluster());
-        double[][] stateObservProbs = countStateObservationProb(exampleSet, stateAtr);
+         double[][] stateObservProbs = countStateObservationProb(exampleSet, stateAtr);
         double[][] stateTransitionProbs = countStateTransitionProb(exampleSet, stateAtr);
-
-        addUniformTransitionDistribution(stateTransitionProbs);
 
         Hmm<ObservationInteger> hmm = initHMM(stateObservProbs, stateTransitionProbs);
 
         return new HMMModel(hmm, exampleSet);
     }
 
-    protected void addUniformTransitionDistribution(double[][] distr) throws UndefinedParameterError {
-        double init = getParameterAsDouble("uniform_init");
-        int N = distr.length;
-        final double factor = N * init + 1;
-        for (int j = 0; j < N; j++) {
-            for (int i = 0; i < N; i++) {
-                distr[i][j] = (distr[i][j] + init) / factor;
-            }
-        }
-    }
+
 
     public boolean supportsCapability(OperatorCapability capability) {
         return true;
@@ -110,7 +93,7 @@ public class HMMLearner extends AbstractLearner {
         if (es.size() == 0) {
             throw new OperatorException("Input must be non empty.");
         }
-        PolynominalAttribute observAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.CLUSTER_NAME);
+        PolynominalAttribute observAtr = getObservationAttribute();
 
         int N = stateAtr.getMapping().size();
         int M = observAtr.getMapping().size();
@@ -183,13 +166,7 @@ public class HMMLearner extends AbstractLearner {
         return quantToProb(quantities);
     }
 
-    @Override
-    public List<ParameterType> getParameterTypes() {
-        List<ParameterType> types = super.getParameterTypes();
-        types.add(new ParameterTypeDouble("uniform_init", "Initial uniform probability of transition between two arbitrary states. Small initial probability means that the transition is unprobable but POSSIBLE.", 0, 1, 0.01, true));
-        return types;
-    }
-
+  
     @Override
     public Class<? extends PredictionModel> getModelClass() {
         return HMMModel.class;
