@@ -1,5 +1,6 @@
 package cz.cuni.amis.rapidminer.operator.hmm;
 
+import cz.cuni.amis.rapidminer.operator.hmm.model.HMMModel;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
 import be.ac.ulg.montefiore.run.jahmm.OpdfIntegerFactory;
 import be.ac.ulg.montefiore.run.jahmm.learn.KMeansLearner;
@@ -24,11 +25,12 @@ public class KMeans extends NonLabeledAbstractLearner {
         super(od);
     }
 
+    @Override
     public Model learn(ExampleSet exampleSet) throws OperatorException {
-        List<? extends List<ObservationInteger>> sequences = Utils.exampleSetToObsList(exampleSet);
-        int M = Utils.clusterAtr(exampleSet).getMapping().size();
+        List<? extends List<ObservationInteger>> sequences = Utils.exampleSetToObsList(exampleSet, getObservationAttribute());
+        int M = getObservationAttribute().getMapping().size();
         int nbStates = getParameterAsInt(NB_STATES_KEY);
-        KMeansLearner kMeansLearner = new KMeansLearner(nbStates, new OpdfIntegerFactory(M), sequences);
+        KMeansLearner<ObservationInteger> kMeansLearner = new KMeansLearner<ObservationInteger>(nbStates, new OpdfIntegerFactory(M), sequences);
         return new HMMModel(kMeansLearner.learn(), exampleSet);
     }
 

@@ -1,7 +1,7 @@
 <project name="RapidMiner_Plugin_ValueSeries_Vega" default="install">
 	<description>Build file for the RapidMiner HMM Extension</description>
 
-	<property name="rm.dir" location="../../../Vega" />
+	<property name="rm.dir" location="../../../../yale/Vega" />
 
 	<property name="build.build" location="build" />
 	<property name="build.resources" location="resources" />

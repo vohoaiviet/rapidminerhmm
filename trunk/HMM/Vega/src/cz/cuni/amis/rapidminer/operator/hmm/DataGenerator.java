@@ -1,5 +1,6 @@
 package cz.cuni.amis.rapidminer.operator.hmm;
 
+import cz.cuni.amis.rapidminer.operator.hmm.model.HMMModel;
 import com.rapidminer.operator.Operator;
 import com.rapidminer.operator.OperatorDescription;
 import com.rapidminer.operator.OperatorException;

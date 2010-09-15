@@ -1,7 +1,7 @@
 package cz.cuni.amis.rapidminer.gui.renderer.hmm;
 
 import com.rapidminer.gui.graphs.GraphCreatorAdaptor;
-import cz.cuni.amis.rapidminer.operator.hmm.HMMModel;
+import cz.cuni.amis.rapidminer.operator.hmm.model.HMMModel;
 import edu.uci.ics.jung.graph.DirectedSparseGraph;
 import edu.uci.ics.jung.graph.Graph;
 import java.text.DecimalFormat;

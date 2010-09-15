@@ -5,10 +5,12 @@ import com.rapidminer.example.Attribute;
 import com.rapidminer.example.Attributes;
 import com.rapidminer.example.Example;
 import com.rapidminer.example.ExampleSet;
+import com.rapidminer.example.set.SplittedExampleSet;
 import com.rapidminer.example.table.PolynominalAttribute;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -20,13 +22,13 @@ public class Utils {
 
     /**
      * Translates RapidMiner data into JAHMM data format. All entries with the same 'batch'
-     * attribute considered to belong to the same sequence. When there is no batch attr. then
+     * attribute are considered to belong to the same sequence. When there is no batch attr. then
      * only single sequence is read.
      * @param exampleSet example set used as source of list of observations
      * @return list of lists of observations
      */
-    static List<? extends List<ObservationInteger>> exampleSetToObsList(ExampleSet exampleSet) {
-        PolynominalAttribute observAtr = clusterAtr(exampleSet);
+    static public List<? extends List<ObservationInteger>> exampleSetToObsList(ExampleSet exampleSet, Attribute observationAtr) {
+        
         Attribute batchAtr = exampleSet.getAttributes().get(Attributes.BATCH_NAME);
         // map for storing sequences, each sequence is marked by the batch atr
         Map<Object, ArrayList<ObservationInteger>> seqMap = new HashMap<Object, ArrayList<ObservationInteger>>();
@@ -39,7 +41,8 @@ public class Utils {
         ArrayList<ObservationInteger> actual = null;
         while (it.hasNext()) {
             Example example = it.next();
-            ObservationInteger observ = new ObservationInteger(observAtr.getMapping().mapString(example.getValueAsString(observAtr)));
+            String valStr = example.getValueAsString(observationAtr);
+            ObservationInteger observ = new ObservationInteger(observationAtr.getMapping().mapString(valStr));
             if (batchAtr != null) {
                 Object batchId = example.getValue(batchAtr);
                 actual = seqMap.get(batchId);
@@ -66,5 +69,41 @@ public class Utils {
 
     static PolynominalAttribute clusterAtr(ExampleSet exampleSet) {
         return (PolynominalAttribute) exampleSet.getAttributes().get(Attributes.CLUSTER_NAME);
+    }
+
+    static public SplittedExampleSet splitByBatch(ExampleSet exampleSet) {
+        Attribute batchAtr = exampleSet.getAttributes().get(Attributes.BATCH_NAME);
+        return SplittedExampleSet.splitByAttribute(exampleSet, batchAtr);
+    }
+
+    static public Map<String, List<List>> computeStateObservationPairs(ExampleSet exampleSet) {
+        SplittedExampleSet splittedExampleSet = splitByBatch(exampleSet);
+        Attribute labelAtr = exampleSet.getAttributes().get(Attributes.LABEL_NAME);
+        Attribute clusterAtr = exampleSet.getAttributes().get(Attributes.CLUSTER_NAME);
+        //List<LabeledSequences> sequences = new ArrayList<LabeledSequences>();
+        Map<String, List<List>> examples = new HashMap<String, List<List>>();
+        for (int i = 0; i < splittedExampleSet.getNumberOfSubsets(); i++) {
+            splittedExampleSet.selectSingleSubset(i);
+            // read sequence of observations with the same 'label' attribute
+            String lastLabel = null;
+            List sequence = null;
+            for (Example e : splittedExampleSet) {
+                String label = e.getValueAsString(labelAtr);
+                if (!label.equals(lastLabel)) {
+                    // new sequence begins, get the corresponding entry
+                    List<List> sequencesOfLabel = examples.get(label);
+                    if(sequencesOfLabel == null) {
+                        sequencesOfLabel = new LinkedList<List>();
+                        examples.put(label, sequencesOfLabel);
+                    }
+                    lastLabel = label;
+                    sequence = new LinkedList();
+                    sequencesOfLabel.add(sequence);
+                }
+                int cluster = (int) e.getValue(clusterAtr);
+                sequence.add(new ObservationInteger(cluster));
+            }
+        }
+        return examples;
     }
 }
