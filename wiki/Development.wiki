@@ -2,7 +2,8 @@
 
 = How to build the project from sources =
 
-  # checkout RapidMiner (RM) source code via SVN from https://yale.svn.sourceforge.net/svnroot/yale
+  # checkout RapidMiner (RM) source code via SVN from 
+https://rapidminer.svn.sourceforge.net/svnroot/rapidminer
   # checkout source code of this project
   # change rm.dir property in `trunk/HMM/Vega/build.xml` file so it points to the dir with latest RM sources, in my case it is `<property name="rm.dir" location="../../../Vega" />`
   # build the plugin by executing `ant` command in `trunk/HMM/Vega/` directory
