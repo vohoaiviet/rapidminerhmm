@@ -1,7 +1,7 @@
 <project name="RapidMiner_Plugin_HMM_Vega" default="install">
 	<description>Build file for the RapidMiner HMM Extension</description>
 
-	<property name="rm.dir" location="../../RM/Vega" />
+	<property name="rm.dir" location="../rapidminer" />
 
 	<property name="build.build" location="build" />
 	<property name="build.resources" location="resources" />
