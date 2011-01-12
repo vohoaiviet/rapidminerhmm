@@ -14,9 +14,12 @@ import com.rapidminer.operator.Model;
 import com.rapidminer.operator.OperatorCapability;
 import com.rapidminer.operator.OperatorDescription;
 import com.rapidminer.operator.OperatorException;
-import com.rapidminer.operator.learner.AbstractLearner;
 import com.rapidminer.operator.learner.PredictionModel;
+import com.rapidminer.parameter.ParameterType;
+import com.rapidminer.parameter.ParameterTypeBoolean;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * Learns a HMM model from input data, input is supposed to have one label attribute
@@ -25,8 +28,10 @@ import java.util.Iterator;
  */
 public class HMMLearner extends NonLabeledAbstractLearner {
 
+    public static final String LAPLACE_MODIF_KEY = "Laplace correction";
+
     public HMMLearner(OperatorDescription od) {
-        super(od);    
+        super(od);
     }
 
     /**
@@ -39,17 +44,16 @@ public class HMMLearner extends NonLabeledAbstractLearner {
         // get the attribute that will be the hidden state used for learning
         PolynominalAttribute stateAtr = (PolynominalAttribute) exampleSet.getAttributes().get(Attributes.LABEL_NAME);
 
+        boolean laplace = getParameterAsBoolean(LAPLACE_MODIF_KEY);
         // count states
         int N = stateAtr.getMapping().size();
-         double[][] stateObservProbs = countStateObservationProb(exampleSet, stateAtr);
-        double[][] stateTransitionProbs = countStateTransitionProb(exampleSet, stateAtr);
+        double[][] stateObservProbs = countStateObservationProb(exampleSet, stateAtr, laplace);
+        double[][] stateTransitionProbs = countStateTransitionProb(exampleSet, stateAtr, laplace);
 
         Hmm<ObservationInteger> hmm = initHMM(stateObservProbs, stateTransitionProbs);
 
         return new HMMModel(hmm, exampleSet);
     }
-
-
 
     public boolean supportsCapability(OperatorCapability capability) {
         return true;
@@ -89,7 +93,7 @@ public class HMMLearner extends NonLabeledAbstractLearner {
      * @return
      * @throws Exception
      */
-    protected double[][] countStateObservationProb(ExampleSet es, PolynominalAttribute stateAtr) throws OperatorException {
+    protected double[][] countStateObservationProb(ExampleSet es, PolynominalAttribute stateAtr, boolean laplace) throws OperatorException {
         if (es.size() == 0) {
             throw new OperatorException("Input must be non empty.");
         }
@@ -101,6 +105,7 @@ public class HMMLearner extends NonLabeledAbstractLearner {
         // i ... state
         // j ... observation
         int[][] quantities = new int[N][M];
+        if(laplace) initLaplace(quantities);
 
         int clusterIndex = -1;
         int stateIndex = -1;
@@ -137,18 +142,29 @@ public class HMMLearner extends NonLabeledAbstractLearner {
     }
 
     /**
+     * Inits matrix with Laplace correction.
+     * @param A
+     */
+    protected void initLaplace(int[][] A) {
+        for(int i = 0; i < A.length; i++) {
+            Arrays.fill(A[i], 1);
+        }
+    }
+
+    /**
      * Counts probability of state transitions given the data.
      * @param es data used for estimation
      * @return
      * @throws Exception
      */
-    protected double[][] countStateTransitionProb(ExampleSet es, PolynominalAttribute stateAtr) throws OperatorException {
+    protected double[][] countStateTransitionProb(ExampleSet es, PolynominalAttribute stateAtr, boolean laplace) throws OperatorException {
         if (es.size() == 0) {
             throw new OperatorException("Input must be non empty.");
         }
         // number of transitions from state i to state j
         int N = stateAtr.getMapping().size();
         int[][] quantities = new int[N][N];
+        if(laplace) initLaplace(quantities);
 
         NominalMapping mapping = stateAtr.getMapping();
 
@@ -166,11 +182,15 @@ public class HMMLearner extends NonLabeledAbstractLearner {
         return quantToProb(quantities);
     }
 
-  
     @Override
     public Class<? extends PredictionModel> getModelClass() {
         return HMMModel.class;
     }
 
-
+    @Override
+    public List<ParameterType> getParameterTypes() {
+        List<ParameterType> types = super.getParameterTypes();
+        types.add(new ParameterTypeBoolean(LAPLACE_MODIF_KEY, "Uses Laplace correction to both state transition matrix and observation matrix. This means that when the transition and observation frequencies are counted then 1 is added to each a_i,j.", true));
+        return types;
+    }
 }

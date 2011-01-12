@@ -1,5 +1,7 @@
 package cz.cuni.amis.rapidminer.operator.hmm.model;
 
+import be.ac.ulg.montefiore.run.jahmm.ForwardBackwardCalculator;
+import be.ac.ulg.montefiore.run.jahmm.ForwardBackwardScaledCalculator;
 import be.ac.ulg.montefiore.run.jahmm.Hmm;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
 import com.rapidminer.example.Attribute;
@@ -11,8 +13,10 @@ import com.rapidminer.example.table.PolynominalAttribute;
 import com.rapidminer.operator.OperatorException;
 import com.rapidminer.operator.learner.PredictionModel;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -22,6 +26,7 @@ public class HMMModel extends PredictionModel {
 
     /** HMM used for prediction. */
     Hmm<ObservationInteger> hmm;
+
     /**
      * Maps state indexes to human readable names.
      */
@@ -59,35 +64,55 @@ public class HMMModel extends PredictionModel {
 
     @Override
     public ExampleSet performPrediction(ExampleSet es, Attribute predictedAtr) throws OperatorException {
-
-        Attribute clusterAtr = es.getAttributes().getCluster();
-
         switch (currentAlgorithm) {
             case VITERBI:
                 return viterbi(es, predictedAtr);
+            case FORWARD_BACKWARD:
+                return forwardBackward(es, predictedAtr);
             default:
                 throw new OperatorException("No valid algorithm set.");
         }
-
-        //es = decorateWithPredWindow(es, clusterAssignment);
-
     }
 
-    protected ExampleSet forwardBackward(ExampleSet es) {
-        //TODO hmm.probability(null);
+    protected ExampleSet forwardBackward(ExampleSet es, Attribute predictedAtr) {
+        List<ObservationInteger> clustersSequence = observationSequence(es);
+        // compute forward probabilities
+        ForwardBackwardScaledCalculator calc = new ForwardBackwardScaledCalculator(clustersSequence, hmm);
+
+        // mapping state index -> confidence attribute
+        Map<Integer, Attribute> ixToAtr = new HashMap<Integer, Attribute>();
+        for(int i = 0; i < hmm.nbStates(); i++) {
+            String state = getStateName(i);
+            Attribute confidence = es.getAttributes().getConfidence(state);
+            ixToAtr.put(i, confidence);
+        }
+
+        // set the forward probs to the ES confidences
+        Iterator<Example> itES = es.iterator();
+        int t = 0;
+        while (itES.hasNext()) {
+            Example e = itES.next();
+            // for each row
+            double maxConfidence = Double.MIN_VALUE;
+            int maxStateIndex = -1;
+            for(int i = 0; i < hmm.nbStates(); i++) {
+                double confidence = calc.alphaElement(t, i);
+                e.setValue(ixToAtr.get(i), confidence);
+                if(confidence > maxConfidence) {
+                    maxConfidence = confidence;
+                    maxStateIndex = i;
+                }
+            }
+            // set best state
+            e.setValue(predictedAtr, getStateName(maxStateIndex));
+            t++;
+        }
+
         return es;
     }
 
     protected ExampleSet viterbi(ExampleSet es, Attribute predictedAtr) {
-        // translate the cluster values
-        List<ObservationInteger> clustersSequence = new ArrayList<ObservationInteger>(es.size());
-        PolynominalAttribute observAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.CLUSTER_NAME);
-        Iterator<Example> it = es.iterator();
-        int observationIndex = -1;
-        while (it.hasNext()) {
-            observationIndex = observAtr.getMapping().mapString(it.next().getValueAsString(observAtr));
-            clustersSequence.add(new ObservationInteger(observationIndex));
-        }
+        List<ObservationInteger> clustersSequence = observationSequence(es);
 
         // compute the most likely sequence of hidden states
         int[] hiddenStates = hmm.mostLikelyStateSequence(clustersSequence);
@@ -99,6 +124,20 @@ public class HMMModel extends PredictionModel {
             itES.next().setValue(predictedAtr, hiddenStates[i++]);
         }
         return es;
+    }
+
+
+    protected List<ObservationInteger> observationSequence(ExampleSet es) {
+        // translate the cluster values
+        List<ObservationInteger> clustersSequence = new ArrayList<ObservationInteger>(es.size());
+        PolynominalAttribute observAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.CLUSTER_NAME);
+        Iterator<Example> it = es.iterator();
+        int observationIndex = -1;
+        while (it.hasNext()) {
+            observationIndex = observAtr.getMapping().mapString(it.next().getValueAsString(observAtr));
+            clustersSequence.add(new ObservationInteger(observationIndex));
+        }
+        return clustersSequence;
     }
 
     ExampleSet decorateWithPredWindow(ExampleSet es, int[] clusterAssignment) {
@@ -156,7 +195,6 @@ public class HMMModel extends PredictionModel {
     }
 
     enum HMMAlg {
-
         VITERBI,
         FORWARD_BACKWARD,
     }
