@@ -14,9 +14,17 @@ import com.rapidminer.operator.Model;
 import com.rapidminer.operator.OperatorCapability;
 import com.rapidminer.operator.OperatorDescription;
 import com.rapidminer.operator.OperatorException;
+import com.rapidminer.operator.clustering.ClusterModel;
 import com.rapidminer.operator.learner.PredictionModel;
+import com.rapidminer.operator.ports.InputPort;
+import com.rapidminer.operator.ports.metadata.CollectionPrecondition;
+import com.rapidminer.operator.ports.metadata.ExampleSetContainsSeriesPrecondition;
+import com.rapidminer.operator.ports.metadata.MetaData;
+import com.rapidminer.operator.ports.metadata.ModelMetaData;
+import com.rapidminer.operator.ports.metadata.SimplePrecondition;
 import com.rapidminer.parameter.ParameterType;
 import com.rapidminer.parameter.ParameterTypeBoolean;
+import cz.cuni.amis.rapidminer.Util;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -28,10 +36,13 @@ import java.util.List;
  */
 public class HMMLearner extends NonLabeledAbstractLearner {
 
+    private final InputPort clustererInput = getInputPorts().createPort("cluster model", ClusterModel.class);
     public static final String LAPLACE_MODIF_KEY = "Laplace correction";
+    ClusterModel clusterer = null;
 
     public HMMLearner(OperatorDescription od) {
         super(od);
+        clustererInput.addPrecondition(new SimplePrecondition(clustererInput, null, false));
     }
 
     /**
@@ -41,6 +52,11 @@ public class HMMLearner extends NonLabeledAbstractLearner {
      * @throws OperatorException
      */
     public Model learn(ExampleSet exampleSet) throws OperatorException {
+        if (clustererInput.isConnected()) {
+            clusterer = clustererInput.getData(ClusterModel.class);
+        }
+
+
         // get the attribute that will be the hidden state used for learning
         PolynominalAttribute stateAtr = (PolynominalAttribute) exampleSet.getAttributes().get(Attributes.LABEL_NAME);
 
@@ -52,7 +68,7 @@ public class HMMLearner extends NonLabeledAbstractLearner {
 
         Hmm<ObservationInteger> hmm = initHMM(stateObservProbs, stateTransitionProbs);
 
-        return new HMMModel(hmm, exampleSet);
+        return new HMMModel(hmm, clusterer, exampleSet);
     }
 
     public boolean supportsCapability(OperatorCapability capability) {
@@ -100,19 +116,22 @@ public class HMMLearner extends NonLabeledAbstractLearner {
         PolynominalAttribute observAtr = getObservationAttribute();
 
         int N = stateAtr.getMapping().size();
-        int M = observAtr.getMapping().size();
 
+        int M = observAtr.getMapping().size();
+        if(clusterer != null) M = clusterer.getNumberOfClusters();
         // i ... state
         // j ... observation
         int[][] quantities = new int[N][M];
-        if(laplace) initLaplace(quantities);
+        if (laplace) {
+            initLaplace(quantities);
+        }
 
         int clusterIndex = -1;
         int stateIndex = -1;
         for (int i = 0; i < es.size(); i++) {
             Example e = es.getExample(i);
             stateIndex = stateAtr.getMapping().mapString(e.getValueAsString(stateAtr));
-            clusterIndex = observAtr.getMapping().mapString(e.getValueAsString(observAtr));
+            clusterIndex = Util.getClusterNum(e.getValueAsString(observAtr));//observAtr.getMapping().mapString(e.getValueAsString(observAtr));
             quantities[stateIndex][clusterIndex] += 1;
         }
 
@@ -146,7 +165,7 @@ public class HMMLearner extends NonLabeledAbstractLearner {
      * @param A
      */
     protected void initLaplace(int[][] A) {
-        for(int i = 0; i < A.length; i++) {
+        for (int i = 0; i < A.length; i++) {
             Arrays.fill(A[i], 1);
         }
     }
@@ -164,7 +183,9 @@ public class HMMLearner extends NonLabeledAbstractLearner {
         // number of transitions from state i to state j
         int N = stateAtr.getMapping().size();
         int[][] quantities = new int[N][N];
-        if(laplace) initLaplace(quantities);
+        if (laplace) {
+            initLaplace(quantities);
+        }
 
         NominalMapping mapping = stateAtr.getMapping();
 
