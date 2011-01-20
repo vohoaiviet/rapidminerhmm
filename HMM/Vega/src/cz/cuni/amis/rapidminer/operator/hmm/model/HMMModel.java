@@ -1,6 +1,5 @@
 package cz.cuni.amis.rapidminer.operator.hmm.model;
 
-import be.ac.ulg.montefiore.run.jahmm.ForwardBackwardCalculator;
 import be.ac.ulg.montefiore.run.jahmm.ForwardBackwardScaledCalculator;
 import be.ac.ulg.montefiore.run.jahmm.Hmm;
 import be.ac.ulg.montefiore.run.jahmm.ObservationInteger;
@@ -8,10 +7,13 @@ import com.rapidminer.example.Attribute;
 import com.rapidminer.example.Attributes;
 import com.rapidminer.example.Example;
 import com.rapidminer.example.ExampleSet;
+import com.rapidminer.example.set.RemappedExampleSet;
 import com.rapidminer.example.table.NominalMapping;
 import com.rapidminer.example.table.PolynominalAttribute;
 import com.rapidminer.operator.OperatorException;
+import com.rapidminer.operator.clustering.ClusterModel;
 import com.rapidminer.operator.learner.PredictionModel;
+import cz.cuni.amis.rapidminer.Util;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -24,17 +26,26 @@ import java.util.Map;
  */
 public class HMMModel extends PredictionModel {
 
+    /** 
+     * Model used to preprocess examples. If it is null then it is assumed that the 
+     * inputs were already clustered.
+     */
+    ClusterModel clusterModel = null;
     /** HMM used for prediction. */
     Hmm<ObservationInteger> hmm;
-
     /**
      * Maps state indexes to human readable names.
      */
     NominalMapping stateNameMapping = null;
 
     public HMMModel(Hmm<ObservationInteger> hmm, ExampleSet es) {
+        this(hmm, null, es);
+    }
+
+    public HMMModel(Hmm<ObservationInteger> hmm, ClusterModel clusterModel, ExampleSet es) {
         super(es);
         this.hmm = hmm;
+        this.clusterModel = clusterModel;
         PolynominalAttribute labelAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.LABEL_NAME);
         this.stateNameMapping = labelAtr.getMapping();
     }
@@ -64,6 +75,22 @@ public class HMMModel extends PredictionModel {
 
     @Override
     public ExampleSet performPrediction(ExampleSet es, Attribute predictedAtr) throws OperatorException {
+        // perform es clustering when clusterrer was set
+
+
+        if (clusterModel != null) {
+            es = clusterModel.apply(es);
+            /*for (Example e : es) {
+                clusterModel.
+            
+            }
+
+            /*    Iterator<Example> it = es.iterator();
+            while(it.hasNext()) {
+            Example e = it.next();
+            }*/
+        }
+
         switch (currentAlgorithm) {
             case VITERBI:
                 return viterbi(es, predictedAtr);
@@ -74,6 +101,18 @@ public class HMMModel extends PredictionModel {
         }
     }
 
+    @Override
+    public ExampleSet apply(ExampleSet exampleSet) throws OperatorException {
+        ExampleSet mappedExampleSet = new RemappedExampleSet(exampleSet, getTrainingHeader());
+        checkCompatibility(mappedExampleSet);
+		Attribute predictedLabel = createPredictionAttributes(mappedExampleSet, getLabel());
+		ExampleSet result = performPrediction(mappedExampleSet, predictedLabel);
+
+		copyPredictedLabel(result, exampleSet);
+		copyCluster(result, exampleSet);
+        return exampleSet;
+	}
+
     protected ExampleSet forwardBackward(ExampleSet es, Attribute predictedAtr) {
         List<ObservationInteger> clustersSequence = observationSequence(es);
         // compute forward probabilities
@@ -81,7 +120,7 @@ public class HMMModel extends PredictionModel {
 
         // mapping state index -> confidence attribute
         Map<Integer, Attribute> ixToAtr = new HashMap<Integer, Attribute>();
-        for(int i = 0; i < hmm.nbStates(); i++) {
+        for (int i = 0; i < hmm.nbStates(); i++) {
             String state = getStateName(i);
             Attribute confidence = es.getAttributes().getConfidence(state);
             ixToAtr.put(i, confidence);
@@ -95,10 +134,10 @@ public class HMMModel extends PredictionModel {
             // for each row
             double maxConfidence = Double.MIN_VALUE;
             int maxStateIndex = -1;
-            for(int i = 0; i < hmm.nbStates(); i++) {
+            for (int i = 0; i < hmm.nbStates(); i++) {
                 double confidence = calc.alphaElement(t, i);
                 e.setValue(ixToAtr.get(i), confidence);
-                if(confidence > maxConfidence) {
+                if (confidence > maxConfidence) {
                     maxConfidence = confidence;
                     maxStateIndex = i;
                 }
@@ -126,20 +165,22 @@ public class HMMModel extends PredictionModel {
         return es;
     }
 
-
     protected List<ObservationInteger> observationSequence(ExampleSet es) {
         // translate the cluster values
         List<ObservationInteger> clustersSequence = new ArrayList<ObservationInteger>(es.size());
         PolynominalAttribute observAtr = (PolynominalAttribute) es.getAttributes().get(Attributes.CLUSTER_NAME);
-        Iterator<Example> it = es.iterator();
+        
         int observationIndex = -1;
-        while (it.hasNext()) {
-            observationIndex = observAtr.getMapping().mapString(it.next().getValueAsString(observAtr));
+
+        for(Example example : es) {
+            observationIndex = Util.getClusterNum(example.getValueAsString(observAtr));//observAtr.getMapping().mapString(example.getValueAsString(observAtr));
             clustersSequence.add(new ObservationInteger(observationIndex));
         }
+        
         return clustersSequence;
     }
 
+    
     ExampleSet decorateWithPredWindow(ExampleSet es, int[] clusterAssignment) {
         // number of observations to take into account
         return es;
@@ -194,7 +235,16 @@ public class HMMModel extends PredictionModel {
         return stateNameMapping;
     }
 
+    private void copyCluster(ExampleSet source, ExampleSet destination) {
+        Attribute clusterLabel = source.getAttributes().getCluster();
+        if (clusterLabel != null) {
+        	// TODO removePredictedLabel(destination, true, true);
+            destination.getAttributes().setCluster(clusterLabel);
+        }
+    }
+
     enum HMMAlg {
+
         VITERBI,
         FORWARD_BACKWARD,
     }
