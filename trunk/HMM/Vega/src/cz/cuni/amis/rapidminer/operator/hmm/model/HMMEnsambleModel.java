@@ -42,7 +42,7 @@ public class HMMEnsambleModel extends PredictionModel {
             // add atributes to schema
             Attribute[] extraAttrs = new Attribute[hmmEnsamble.getNumberOfHmms()];
             for (int i = 0; i < hmmEnsamble.getNumberOfHmms(); i++) {
-                Attribute singleProbAtr = AttributeFactory.createAttribute("prob(" + i + ")", Ontology.REAL);
+                Attribute singleProbAtr = AttributeFactory.createAttribute("prob(" + result.getClasses().get(i) + ")", Ontology.REAL);
                 exampleSet.getAttributes().addRegular(singleProbAtr);
                 exampleSet.getExampleTable().addAttribute(singleProbAtr);
                 extraAttrs[i] = singleProbAtr;
