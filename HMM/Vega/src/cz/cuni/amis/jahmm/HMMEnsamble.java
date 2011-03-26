@@ -17,7 +17,7 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
- *
+ * Set of discriminative HMMs, each one is trained to classify one class.
  * @author ik
  */
 public class HMMEnsamble<O extends ObservationInteger> {
@@ -115,6 +115,7 @@ public class HMMEnsamble<O extends ObservationInteger> {
                 }
             }
             assert (maxIndex >= 0);
+            result.bestHmmIx[t] = maxIndex;
         }
         return result;
     }
